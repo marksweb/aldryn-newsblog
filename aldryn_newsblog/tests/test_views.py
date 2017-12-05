@@ -11,9 +11,11 @@ from random import randint
 from django.conf import settings
 from django.core.files import File as DjangoFile
 from django.core.urlresolvers import reverse, NoReverseMatch
+from django.forms import model_to_dict
 from django.utils.timezone import now
 from django.utils.translation import override
 
+from aldryn_newsblog.admin import ArticleAdminForm
 from aldryn_newsblog.models import Article, NewsBlogConfig
 from aldryn_newsblog.search_indexes import ArticleIndex
 from cms.utils.i18n import get_current_language, force_language
@@ -543,6 +545,14 @@ class TestVariousViews(NewsBlogTestCase):
                     for _ in range(11)]
         with self.assertRaises(NoReverseMatch):
             self.client.get(articles[0].get_absolute_url())
+
+    def test_empty_title(self):
+        article = self.create_article(title=' ')
+        self.assertEqual(article.title, ' ')
+
+        form_data = model_to_dict(article)
+        form = ArticleAdminForm(data=form_data)
+        self.assertFalse(form.is_valid())
 
 
 class TestIndex(NewsBlogTestCase):

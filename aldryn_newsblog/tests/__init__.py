@@ -96,10 +96,18 @@ class NewsBlogTestsMixin(object):
             owner = kwargs['owner']
         except KeyError:
             owner = author.user
+        try:
+            title = kwargs['title']
+        except KeyError:
+            title = self.rand_str()
+        try:
+            slug = kwargs['slug']
+        except KeyError:
+            slug = self.rand_str()
 
         fields = {
-            'title': self.rand_str(),
-            'slug': self.rand_str(),
+            'title': title,
+            'slug': slug,
             'author': author,
             'owner': owner,
             'app_config': self.app_config,

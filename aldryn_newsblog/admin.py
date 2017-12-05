@@ -99,6 +99,13 @@ class ArticleAdminForm(TranslatableModelForm):
                 hasattr(self.fields['related'], 'widget')):
             self.fields['related'].widget.can_add_related = False
 
+    def clean(self):
+        cleaned_data = super(ArticleAdminForm, self).clean()
+        title = cleaned_data.get('title')
+        if title and title.strip() == '':
+            self.add_error('title', _("This field is required"))
+        return cleaned_data
+
 
 class ArticleAdmin(
     AllTranslationsMixin,
