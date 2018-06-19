@@ -9,10 +9,9 @@ from cms.models.fields import PlaceholderField
 from django import forms
 from django.conf import settings
 from django.db import models
+from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 from parler.models import TranslatableModel, TranslatedFields
-
-from .settings import ENABLE_REVERSION
 
 PERMALINK_CHOICES = (
     ('s', _('the-eagle-has-landed/', )),
@@ -34,13 +33,15 @@ TEMPLATE_PREFIX_CHOICES = getattr(
     settings, 'ALDRYN_NEWSBLOG_TEMPLATE_PREFIXES', [])
 
 
+@python_2_unicode_compatible
 class NewsBlogConfig(TranslatableModel, AppHookConfig):
     """Adds some translatable, per-app-instance fields."""
     translations = TranslatedFields(
-        app_title=models.CharField(_('application title'), max_length=234),
+        app_title=models.CharField(_('name'), max_length=234),
     )
 
-    permalink_type = models.CharField(_('permalink type'), max_length=8,
+    permalink_type = models.CharField(
+        _('permalink type'), max_length=8,
         blank=False, default='slug', choices=PERMALINK_CHOICES,
         help_text=_('Choose the style of urls to use from the examples. '
                     '(Note, all types are relative to apphook)'))
@@ -140,8 +141,11 @@ class NewsBlogConfig(TranslatableModel, AppHookConfig):
         return getattr(self, 'app_title', _('untitled'))
 
     class Meta:
-        verbose_name = _('application configuration')
-        verbose_name_plural = _('application configurations')
+        verbose_name = _('Section')
+        verbose_name_plural = _('Sections')
+
+    def __str__(self):
+        return self.safe_translation_getter('app_title')
 
 
 class NewsBlogConfigForm(AppDataForm):
@@ -151,7 +155,3 @@ class NewsBlogConfigForm(AppDataForm):
 
 
 setup_config(NewsBlogConfigForm, NewsBlogConfig)
-
-if ENABLE_REVERSION:
-    from aldryn_reversion.core import version_controlled_content
-    NewsBlogConfig = version_controlled_content(NewsBlogConfig)
