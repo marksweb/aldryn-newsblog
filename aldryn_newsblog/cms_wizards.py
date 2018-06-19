@@ -3,8 +3,7 @@
 from __future__ import unicode_literals
 
 from django import forms
-from django.db import transaction
-from django.utils.translation import ugettext_lazy as _, ugettext
+from django.utils.translation import ugettext_lazy as _
 
 from cms.api import add_plugin
 from cms.utils import permissions
@@ -19,7 +18,6 @@ from parler.forms import TranslatableModelForm
 from .cms_appconfig import NewsBlogConfig
 from .models import Article
 from .utils.utilities import is_valid_namespace
-from .settings import ENABLE_REVERSION
 
 
 def get_published_app_configs():
@@ -93,38 +91,19 @@ class CreateNewsBlogArticleForm(BaseFormMixin, TranslatableModelForm):
 
     def save(self, commit=True):
         article = super(CreateNewsBlogArticleForm, self).save(commit=False)
-
-        # Set owner to current user
         article.owner = self.user
+        article.save()
 
-        # If 'content' field has value, create a TextPlugin with same and add
-        # it to the PlaceholderField
+        # If 'content' field has value, create a TextPlugin with same and add it to the PlaceholderField
         content = clean_html(self.cleaned_data.get('content', ''), False)
-        if content and permissions.has_plugin_permission(
-                self.user, 'TextPlugin', 'add'):
-            # If the article has not been saved, then there will be no
-            # Placeholder set-up for this article yet, so, ensure we have saved
-            # first.
-            if not article.pk:
-                article.save()
+        if content and permissions.has_plugin_permission(self.user, 'TextPlugin', 'add'):
+            add_plugin(
+                placeholder=article.content,
+                plugin_type='TextPlugin',
+                language=self.language_code,
+                body=content,
+            )
 
-            if article and article.content:
-                add_plugin(
-                    placeholder=article.content,
-                    plugin_type='TextPlugin',
-                    language=self.language_code,
-                    body=content,
-                )
-
-        if ENABLE_REVERSION:
-            from reversion.revisions import revision_context_manager
-            with transaction.atomic():
-                with revision_context_manager.create_revision():
-                    article.save()
-                    if self.user:
-                        revision_context_manager.set_user(self.user)
-                    revision_context_manager.set_comment(
-                        ugettext("Initial version."))
         return article
 
 

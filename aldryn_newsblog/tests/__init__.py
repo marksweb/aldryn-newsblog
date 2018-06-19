@@ -22,10 +22,8 @@ from cms.apphook_pool import apphook_pool
 from cms.appresolver import clear_app_resolvers
 from cms.exceptions import AppAlreadyRegistered
 from cms.test_utils.testcases import CMSTestCase, TransactionCMSTestCase
-from cms.utils import get_cms_setting
-
 from cms.toolbar.toolbar import CMSToolbar
-
+from cms.utils.conf import get_cms_setting
 
 from parler.utils.context import switch_language
 
@@ -78,10 +76,11 @@ class NewsBlogTestsMixin(object):
         return prefix + u''.join(random.choice(chars) for _ in range(length))
 
     @classmethod
-    def create_user(cls):
-        return User.objects.create(
-            username=cls.rand_str(), first_name=cls.rand_str(),
-            last_name=cls.rand_str())
+    def create_user(cls, **kwargs):
+        kwargs.setdefault('username', cls.rand_str())
+        kwargs.setdefault('first_name', cls.rand_str())
+        kwargs.setdefault('last_name', cls.rand_str())
+        return User.objects.create(**kwargs)
 
     def create_person(self):
         return Person.objects.create(
@@ -184,9 +183,23 @@ class NewsBlogTestsMixin(object):
         self.template = get_cms_setting('TEMPLATES')[0][0]
         self.language = settings.LANGUAGES[0][0]
         self.root_page = api.create_page(
-            'root page', self.template, self.language, published=True)
-        self.app_config = NewsBlogConfig.objects.create(
-            namespace='NBNS', paginate_by=15)
+            'root page',
+            self.template,
+            self.language,
+            published=True,
+        )
+
+        try:
+            # Django-cms 3.5 doesn't set is_home when create_page is called
+            self.root_page.set_as_homepage()
+        except AttributeError:
+            pass
+
+        self.app_config = NewsBlogConfig.objects.language(self.language).create(
+            app_title='news_blog',
+            namespace='NBNS',
+            paginate_by=15,
+        )
         self.page = api.create_page(
             'page', self.template, self.language, published=True,
             parent=self.root_page,
@@ -207,6 +220,11 @@ class NewsBlogTestsMixin(object):
 
 class CleanUpMixin(object):
     apphook_object = None
+
+    def setUp(self):
+        super(CleanUpMixin, self).setUp()
+        apphook_object = self.get_apphook_object()
+        self.reload_urls(apphook_object)
 
     def tearDown(self):
         """
